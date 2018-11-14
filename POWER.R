@@ -77,7 +77,9 @@ power_na <- power[rowSums(is.na(power)) > 0,]
 
 power_new<-dplyr::mutate(power, NotSubMet_Wh = ((Global_active_power_kWm*1000)/60)
                          -Sub_metering_3_Wh-Sub_metering_2_Wh-Sub_metering_1_Wh, 
-                         GlobalApparent_Wh = (Global_active_power_kWm+Global_reactive_power_kWm)*1000/60)
+                         GlobalApparent_Wh = (Global_active_power_kWm+Global_reactive_power_kWm)*1000/60, 
+                         Global_active_power_Wh=((Global_active_power_kWm*1000)/60))
+
 
 
 
@@ -96,7 +98,7 @@ power_new[is.na(power_new)] <- 0
 #group by ##
 power_ym<-power_new %>% select(DateTime, Global_active_power_kWm, Global_reactive_power_kWm,
                                GlobalApparent_Wh, Voltage_V, Global_intensity_A, NotSubMet_Wh, 
-                               Sub_metering_1_Wh, Sub_metering_2_Wh, Sub_metering_3_Wh)%>%
+                               Sub_metering_1_Wh, Sub_metering_2_Wh, Sub_metering_3_Wh, Global_active_power_Wh)%>%
   mutate(YearP=year(DateTime), MonthP=month(DateTime, label = TRUE, abbr = FALSE))%>%
   group_by(YearP, MonthP)%>%summarise_all(sum)%>%ungroup()%>%filter(YearP!=2006)
 
@@ -128,7 +130,7 @@ power_ym<-power_new %>% select(DateTime, Global_active_power_kWm, Global_reactiv
 
 #hist(power_na$DataTime, breaks = )##pendiente de ver como funcionan los breaks
 
-dev.off()
+#dev.off()
 
 ####GGPLOT####
 
@@ -150,52 +152,51 @@ dev.off()
 theme_set(theme_light())
 
 ggplot(power_ym, aes(x=MonthP, group= 1))+
-  geom_line(aes(y=NotSubMet_Wh, col="NotSubMet_Wh")) + 
-  geom_line(aes(y=GlobalApparent_Wh, col="GlobalApparent_Wh")) + 
-  geom_line(aes(y=Sub_metering_1_Wh, col="Sub_metering_1_Wh")) + 
-  geom_line(aes(y=Sub_metering_2_Wh, col="Sub_metering_2_Wh")) + 
-  geom_line(aes(y=Sub_metering_3_Wh, col="Sub_metering_3_Wh")) + 
-  facet_wrap(~YearP, scales = "free_x")+
-  theme(axis.text.x = element_text(size = 10, angle = 45, hjust = 1))+
-  labs(title = "Consuption by Month",
+  geom_line(aes(y=NotSubMet_Wh, col="Unkown"), size=1.1) + 
+  geom_line(aes(y=Global_active_power_Wh, col="Global Household"), size=1.1) + 
+  geom_line(aes(y=Sub_metering_1_Wh, col="Kitchen"), size=1.1) + 
+  geom_line(aes(y=Sub_metering_2_Wh, col="Laundry Room"), size=1.1) + 
+  geom_line(aes(y=Sub_metering_3_Wh, col="Electric water-heater & Air Con"), size=1.1) + 
+  facet_grid(~YearP, scales = "free_x")+
+  theme(axis.text.x = element_text(size = 10, angle = 45, hjust = 1, face='bold'))+
+  labs(title = "Consuption Active Power by Month",
        subtitle = "(2007-10)",
        tag = "",
-       x = "Consuption Wh",
-       y = "",
-       colour = "Legend")
+       x = "",
+       y = "Consuption Wh",
+       colour = "Legend") 
 
-
-yearplot <-ggplot(power_ym, aes(x=MonthP, group= 1))+
-  geom_line(aes(y=NotSubMet_Wh, col="NotSubMet_Wh")) + 
-  geom_line(aes(y=GlobalApparent_Wh, col="GlobalApparent_Wh")) + 
-  geom_line(aes(y=Sub_metering_1_Wh, col="Sub_metering_1_Wh")) + 
-  geom_line(aes(y=Sub_metering_2_Wh, col="Sub_metering_2_Wh")) + 
-  geom_line(aes(y=Sub_metering_3_Wh, col="Sub_metering_3_Wh")) + 
-  #scale_y_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12))
-  #scale_x_discrete(labels=c(1,2,3,4,5,6,7,8,9,10,11,12))
-  facet_wrap(~YearP, facets = c(2007:2008), scales = "free_x")
-
-
-
-
-ggplot(subset(df, x != 2006), aes(x = z, y = y, fill = z))
-
-plot1 <- ggplot(power_ym, aes(x = MonthP)) +
-  geom_point(aes(y=Sub_metering_1_Wh, col="Sub_metering_1_Wh")) +
-  labs(x = "Month",
-       title = "xxx")
-
-plot2 <- ggplot(power_ym, aes(x = MonthP)) +
-  geom_line(aes(y=Sub_metering_1_Wh, col="Sub_metering_1_Wh")) +
-  labs(x = "Month",
-       title = "xxx")+
-  facet_wrap(~YearP)
-
-
-
-plot_df <- melt(power_ym[, c("YearP", "Sub_metering_1_Wh")], id="YearP")  # melt by date. 
-gg <- ggplot(plot_df, aes(x=YearP))  # setup
-gg + geom_line(aes(y=value, color=variable), size=1)
+# yearplot <-ggplot(power_ym, aes(x=MonthP, group= 1))+
+#   geom_line(aes(y=NotSubMet_Wh, col="NotSubMet_Wh")) + 
+#   geom_line(aes(y=GlobalApparent_Wh, col="GlobalApparent_Wh")) + 
+#   geom_line(aes(y=Sub_metering_1_Wh, col="Sub_metering_1_Wh")) + 
+#   geom_line(aes(y=Sub_metering_2_Wh, col="Sub_metering_2_Wh")) + 
+#   geom_line(aes(y=Sub_metering_3_Wh, col="Sub_metering_3_Wh")) + 
+#   #scale_y_continuous(breaks=c(1,2,3,4,5,6,7,8,9,10,11,12))
+#   #scale_x_discrete(labels=c(1,2,3,4,5,6,7,8,9,10,11,12))
+#   facet_wrap(~YearP, facets = c(2007:2008), scales = "free_x")
+# 
+# 
+# 
+# 
+# ggplot(subset(df, x != 2006), aes(x = z, y = y, fill = z))
+# 
+# plot1 <- ggplot(power_ym, aes(x = MonthP)) +
+#   geom_point(aes(y=Sub_metering_1_Wh, col="Sub_metering_1_Wh")) +
+#   labs(x = "Month",
+#        title = "xxx")
+# 
+# plot2 <- ggplot(power_ym, aes(x = MonthP)) +
+#   geom_line(aes(y=Sub_metering_1_Wh, col="Sub_metering_1_Wh")) +
+#   labs(x = "Month",
+#        title = "xxx")+
+#   facet_wrap(~YearP)
+# 
+# 
+# 
+# plot_df <- melt(power_ym[, c("YearP", "Sub_metering_1_Wh")], id="YearP")  # melt by date. 
+# gg <- ggplot(plot_df, aes(x=YearP))  # setup
+# gg + geom_line(aes(y=value, color=variable), size=1)
   
 ####~~~~NOTES - NEXT STEPS~~~~####
 
