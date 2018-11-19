@@ -118,9 +118,12 @@ power_ym<-power_new %>% select(DateTime, Global_active_power_kWm, Global_reactiv
 #      xlab = "Global Active Power (kilowatts)", col = "mediumturquoise")
 # 
 # 
-# plot(power$Global_active_power_kWm ~ power$DateTime,
-# ylab = "Global Active Power (kilowatts)", xlab = "", type = "l")
+plot(power$Global_active_power_kWm ~ power$DateTime, 
+     ylab = "Global Active Power (kilowatts)", xlab = "", type = "l", col="darkcyan")
 
+
+plot(power$Global_active_power_kWm ~ power$DateTime, 
+     ylab = "Global Active Power (kilowatts)", xlab = "", type = "h", col="darkcyan", main= "Consumption by day")
 #meterings#
 
 # plot(power$Sub_metering_1 ~ power$DateTime, ylab = "Energy sub metering", xlab = "", type = "l")
