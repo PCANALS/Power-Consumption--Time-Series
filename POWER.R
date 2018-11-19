@@ -19,6 +19,9 @@ tidyverse_update()
 library(tidyselect)
 library(lubridate)
 library(imputeTS)
+library(R.utils)
+library(TTR)
+
 
 #### A._SETTING FILES####
 
@@ -70,7 +73,10 @@ names(power)<-c("DateTime", "Date", "Time",
 ##extracting observations with MISSING VALUES##
 
 
-power_na <- power[rowSums(is.na(power)) > 0,]
+power_na <- power[rowSums(is.na(power)) > 0,] #blackout or unpowering#
+
+power_na2 <- power[rowSums(is.na(power)) >= 1 & rowSums(is.na(power)) < length(colnames(power))-3,] #detect partial missing data, error in a submeters#
+
 
 
 ##create attributes##
@@ -106,6 +112,40 @@ power_ym<-power_new %>% select(DateTime, Global_active_power_kWm, Global_reactiv
   group_by(YearP, MonthP)%>%summarise_all(sum)%>%ungroup()%>%filter(YearP!=2006)
 
 
+##MISSING DAYS##
+
+power_day<-power_new%>%select(Date, Global_active_power_kWm)%>%
+  #mutate(Year2=year(Date), Month2=month(Date), Day2= day(Date))%>%
+  group_by(Date)%>%
+  summarise(Global_active_power_kWm = mean(Global_active_power_kWm))
+  
+power_day$consecutiveDay <- c(NA,diff(ymd(power_day$Date))==1)
+
+
+head(power_day)
+
+nrow(power_day)-1==sum(power_day$consecutiveDay, na.rm = T)
+
+#we can confirm that all dates registered are consecutive#
+
+##MISSING TIME##
+
+power_time<-power_new%>%select(DateTime, Global_active_power_kWm)%>%
+  mutate(Day2=ymd_hm(DateTime))%>%
+  group_by(Day2)%>%
+  summarise(Global_active_power_kWm = mean(Global_active_power_kWm))
+
+
+# Warning message:
+#   All formats failed to parse. No formats found. 
+
+power_time$consecutivetime <- c(NA,diff(ymd_hm(power_time$DateTime))==1)
+
+
+head(power_time)
+
+nrow(power_time)-1==sum(power_time$consecutivetime, na.rm = T)
+
 
 #### PLOTS ####
 
@@ -118,11 +158,9 @@ power_ym<-power_new %>% select(DateTime, Global_active_power_kWm, Global_reactiv
 # plot(power$Global_active_power_kWm ~ power$DateTime,
 # ylab = "Global Active Power (kilowatts)", xlab = "", type = "l")
 
-<<<<<<< Updated upstream
-#meterings#
-=======
+
 ##sub-meterings##
->>>>>>> Stashed changes
+
 
 # plot(power$Sub_metering_1 ~ power$DateTime, ylab = "Energy sub metering", xlab = "", type = "l")
 # lines(power$Sub_metering_2 ~ power$DateTime, col = 'Red')
@@ -165,6 +203,39 @@ par(mfrow=c(2,2))
 
 plot(na.mean(tsAirgap, option = "mean") - AirPassengers, ylim = c(-mean(AirPassengers), mean(AirPassengers)), ylab = "Difference", main = "Mean")
 mean((na.mean(tsAirgap, option = "mean") - AirPassengers)^2)
+
+
+kings <- scan("http://robjhyndman.com/tsdldata/misc/kings.dat",skip=3)
+
+kingstimeseries <- ts(kings) #, frequency = 12 for do it by month
+kingstimeseries
+
+births <- scan("http://robjhyndman.com/tsdldata/data/nybirths.dat")
+
+birthstimeseries <- ts(births, frequency=12, start=c(1946,1))
+birthstimeseries
+
+plot.ts(birthstimeseries)
+
+souvenir <- scan("http://robjhyndman.com/tsdldata/data/fancy.dat")
+
+souvenirtimeseries <- ts(souvenir, frequency=12, start=c(1987,1))
+souvenirtimeseries
+
+plot.ts(souvenirtimeseries)
+
+logsouvenirtimeseries <- log(souvenirtimeseries)
+
+plot.ts(logsouvenirtimeseries)
+
+kingstimeseriesSMA3 <- SMA(kingstimeseries,n=8)
+
+plot.ts(kingstimeseriesSMA3)
+
+birthstimeseriescomponents <- decompose(birthstimeseries)
+
+plot(birthstimeseriescomponents)
+
 
 ####~~~~NOTES - NEXT STEPS~~~~####
 
