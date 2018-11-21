@@ -270,34 +270,52 @@ pwd_ts<-ts(power_day[,1:2], frequency = 365, start=c(2006,12))
 plot.ts(pwm_ts[,3])
 plot.ts(pwd_ts[,2])
 
-autoplot(pwm_ts[,3])
-autoplot(pwd_ts[,2])
+ptsm<-autoplot(pwm_ts[,3])+ ggtitle("Global Consuption by month")
+ptsd<-autoplot(pwd_ts[,2])+ ggtitle("Global Consuption by day")
+
+ptsmd<-grid.arrange(ptsm, ptsd)
+
+#plot to see differences with seasons#
+pseam<-ggseasonplot(pwm_ts[,3], year.labels=TRUE, year.labels.left=TRUE)+ ylab(" Consuption ")+
+                      ggtitle("Seasonal plot: Global Consuption by month")
+
+psead<-ggseasonplot(pwd_ts[,2], year.labels=TRUE, year.labels.left=TRUE)+ ylab(" Consuption ")+
+  ggtitle("Seasonal plot: Global Consuption by day")
+
+pseamd<-grid.arrange(pseam, psead)
 
 
-tsoutliers(pwm_ts[,2], )
+ggseasonplot(pwd_ts[,2], polar=TRUE)
 
-pwm_ts %>% changepoint::cpt.meanvar() %>% autoplot()
-strucchange::breakpoints(pwm_ts~1) %>% autoplot()
 
-autoplot(pwm_ts[,3], as.numeric=FALSE)+ geom_line()+ stat_peaks(colour = "red") +
-  stat_peaks(geom = "text", colour = "red", 
-             vjust = -0.5, x.label.fmt = "%Y") +
-  stat_valleys(colour = "blue") +
-  stat_valleys(geom = "text", colour = "blue", angle = 45,
-               vjust = 1.5, hjust = 1,  x.label.fmt = "%Y")+
-  ylim(-500, 7300)
+tsoutliers(pwm_ts[,2])
+
+
+
+# autoplot(pwm_ts[,3], as.numeric=FALSE)+ geom_line()+ stat_peaks(colour = "red") +
+#   stat_peaks(geom = "text", colour = "red", 
+#              vjust = -0.5, x.label.fmt = "%Y") +
+#   stat_valleys(colour = "blue") +
+#   stat_valleys(geom = "text", colour = "blue", angle = 45,
+#                vjust = 1.5, hjust = 1,  x.label.fmt = "%Y")+
+#   ylim(-500, 7300)
 
 pwm_ts_log<-log(pwm_ts)
 pwm_ts_dec<-decompose(pwm_ts)
 
-
+pwm_ts %>% changepoint::cpt.meanvar() %>% autoplot()
+strucchange::breakpoints(pwm_ts~1) %>% autoplot()
 
 ####~~~~~~~~   NOTES - NEXT STEPS    ~~~~~~~~####
 
-#identify missing days#
+#identify missing minutess#
 #na f¡values with prior#
 #na with the #
+#replace outliers with regresion model or spline, pending to analize#
+
 #decompose without logarith#
+
+
 ####Time Series tests####
 
 # plot(tsAirgap, main="AirPassenger data with missing values")
