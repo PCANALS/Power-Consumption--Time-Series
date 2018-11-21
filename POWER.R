@@ -8,19 +8,20 @@ Sys.setlocale(category = "LC_ALL", locale = "english")
 #### ._LIBRARIES####
 
 library(tidyselect)
-library(lubridate)
 #install.packages("tidyverse")
-library(tidyverse)
-#####includes:
-#library(dplyr)
-#library(ggplot2)
-#library(tidyr)
+#library(tidyverse)
+#####includes:###
+library(dplyr)
+library(ggplot2)
+library(tidyr)
 tidyverse_update()
-library(tidyselect)
+#library(tidyselect)
 library(lubridate)
 library(imputeTS)
 library(R.utils)
 library(TTR)
+library(ggfortify)
+library(magrittr)
 
 
 #### A._SETTING FILES####
@@ -192,14 +193,14 @@ PlConsuption<-ggplot(power_ym, aes(x=MonthP, group= 1))+
 
 PlConsuption
 
-####Time Series tests####
+  ####Time Series tests####
 
 plot(tsAirgap, main="AirPassenger data with missing values")
 
 
 statsNA(tsAirgap)
 
-par(mfrow=c(2,2))
+par(mfrow=c(1,1)) #nomber of plots#
 
 plot(na.mean(tsAirgap, option = "mean") - AirPassengers, ylim = c(-mean(AirPassengers), mean(AirPassengers)), ylab = "Difference", main = "Mean")
 mean((na.mean(tsAirgap, option = "mean") - AirPassengers)^2)
@@ -236,7 +237,53 @@ birthstimeseriescomponents <- decompose(birthstimeseries)
 
 plot(birthstimeseriescomponents)
 
+#### TIME SERIES IN POWER####
+
+
+##by month#
+power_ts<-power_new %>% select(Date, Global_active_power_kWm)%>%
+  transmute(YeTs=year(Date), MoTs=month(Date, label = TRUE, abbr = FALSE), Global_active_power_kWm)%>%
+  group_by(YeTs, MoTs)%>%summarise_all(mean)
+
+power_ts2<-na.interp(power_ts)
+
+#by day#
+#power_day
+
+par(mfrow=c(2,1)) #number of plots#
+
+pwm_ts<-ts(power_ts2, frequency = 12, start=c(2006,12))
+
+pwd_ts<-ts(power_day[,1:2], frequency = 365, start=c(2006,12))
+
+plot.ts(pwm_ts[,3])
+plot.ts(pwd_ts[,2])
+
+autoplot(pwm_ts[,3])
+autoplot(pwd_ts[,2])
+
+
+tsoutliers(pwm_ts[,2], )
+
+pwm_ts %>% changepoint::cpt.meanvar() %>% autoplot()
+strucchange::breakpoints(pwm_ts~1) %>% autoplot()
+
+autoplot(pwm_ts[,3], as.numeric=FALSE)+ geom_line()+ stat_peaks(colour = "red") +
+  stat_peaks(geom = "text", colour = "red", 
+             vjust = -0.5, x.label.fmt = "%Y") +
+  stat_valleys(colour = "blue") +
+  stat_valleys(geom = "text", colour = "blue", angle = 45,
+               vjust = 1.5, hjust = 1,  x.label.fmt = "%Y")+
+  ylim(-500, 7300)
+
+pwm_ts_log<-log(pwm_ts)
+pwm_ts_dec<-decompose(pwm_ts)
+
+
 
 ####~~~~NOTES - NEXT STEPS~~~~####
 
 #identify missing days#
+#na f¡values with prior#
+#na with the #
+#decompose without logarith#
