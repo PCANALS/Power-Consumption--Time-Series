@@ -14,7 +14,7 @@ library(tidyselect)
 library(dplyr)
 library(ggplot2)
 library(tidyr)
-tidyverse_update()
+#tidyverse_update()
 #library(tidyselect)
 library(lubridate)
 library(imputeTS)
@@ -22,9 +22,10 @@ library(R.utils)
 library(TTR)
 library(ggfortify)
 library(magrittr)
-
-
-#### A._SETTING FILES####
+library(forecast)
+library(zoo)
+library(gridExtra)
+#### A._ SETTING FILES####
 
 setwd("C:/Users/pilar/Google Drive/A_DATA/UBIQUM/TASK3.1/task-3-1-define-a-data-science-process-PCANALS")
 
@@ -71,15 +72,6 @@ names(power)<-c("DateTime", "Date", "Time",
                 "Sub_metering_1_Wh", "Sub_metering_2_Wh", "Sub_metering_3_Wh")
 
 
-##extracting observations with MISSING VALUES##
-
-
-power_na <- power[rowSums(is.na(power)) > 0,] #blackout or unpowering#
-
-power_na2 <- power[rowSums(is.na(power)) >= 1 & rowSums(is.na(power)) < length(colnames(power))-3,] #detect partial missing data, error in a submeters#
-
-
-
 ##create attributes##
 
 
@@ -90,7 +82,10 @@ power_new<-dplyr::mutate(power, NotSubMet_Wh = ((Global_active_power_kWm*1000)/6
 
 
 
-#### C.- SUBSETS ####
+#### C.- SUBSETS - NEW DATA FRAMES ####
+
+
+#### C.-1 Subset 100 Observations ####
 
 ##100 observations for first easy analysis, tests#
 
@@ -99,19 +94,60 @@ power_100<-power_new[1:100,]
 power_100<-power_100%>%group_by(hour(DateTime),minute(DateTime))%>%summarise_all(mean)
 
 
+#### C.-2 MISSING VALUES NA####
+
+#### C.-2.1 Identify  NA####
+
+##extracting observations with MISSING VALUES##
+
+
+power_na <- power[rowSums(is.na(power)) > 0,] #blackout or unpowering#
+
+power_na2 <- power[rowSums(is.na(power)) >= 1 & rowSums(is.na(power)) < length(colnames(power))-3,] #detect partial missing data, error in a submeters#
+
+
+#### C.-2.2 Remove NA####
 
 #change de NA for 0##  its need a value to do the sums in the group-by or remove de rows#
-
 power_new[is.na(power_new)] <- 0
 
 
+#### C.-2.3 Change NA with the closest values - INTERPOLATE####
+
+#power_new2<-na.interp(power_new) # is only working for time series
+
+#power_new2 <-na.approx(power)
+
+power_new2<-dplyr::mutate(power, NotSubMet_Wh = ((Global_active_power_kWm*1000)/60)
+                          -Sub_metering_3_Wh-Sub_metering_2_Wh-Sub_metering_1_Wh, 
+                          GlobalApparent_Wh = (Global_active_power_kWm+Global_reactive_power_kWm)*1000/60, 
+                          Global_active_power_Wh=((Global_active_power_kWm*1000)/60))
+
+
+power_new2<-na.locf(power_new2)
+
+anyNA(power_new2)
+
+# na.approx(Cz, x=Cz$time)
+
+#### C.-3 Group by Month and Year####
+
 #group by ##
+
 power_ym<-power_new %>% select(DateTime, Global_active_power_kWm, Global_reactive_power_kWm,
                                GlobalApparent_Wh, Voltage_V, Global_intensity_A, NotSubMet_Wh, 
                                Sub_metering_1_Wh, Sub_metering_2_Wh, Sub_metering_3_Wh, Global_active_power_Wh)%>%
   mutate(YearP=year(DateTime), MonthP=month(DateTime, label = TRUE, abbr = FALSE))%>%
   group_by(YearP, MonthP)%>%summarise_all(sum)%>%ungroup()%>%filter(YearP!=2006)
 
+power_ym2<-power_new2 %>% select(DateTime, Global_active_power_kWm, Global_reactive_power_kWm,
+                               GlobalApparent_Wh, Voltage_V, Global_intensity_A, NotSubMet_Wh, 
+                               Sub_metering_1_Wh, Sub_metering_2_Wh, Sub_metering_3_Wh, Global_active_power_Wh)%>%
+  mutate(YearP=year(DateTime), MonthP=month(DateTime, label = TRUE, abbr = FALSE))%>%
+  group_by(YearP, MonthP)%>%summarise_all(sum)%>%ungroup()%>%filter(YearP!=2006)
+
+
+#### C.-4 Non consecutive days/time####
 
 ##MISSING DAYS##
 
@@ -184,7 +220,7 @@ PlConsuption<-ggplot(power_ym, aes(x=MonthP, group= 1))+
   geom_line(aes(y=Sub_metering_3_Wh, col="Electric water-heater & Air Con"), size=1.1) + 
   facet_grid(~YearP, scales = "free_x")+
   theme(axis.text.x = element_text(size = 10, angle = 45, hjust = 1, face='bold'))+
-  labs(title = "Consuption Active Power by Month",
+  labs(title = "Consuption Active Power by Month (NA replaced by 0)",
        subtitle = "(2007-10)",
        tag = "",
        x = "",
@@ -193,50 +229,25 @@ PlConsuption<-ggplot(power_ym, aes(x=MonthP, group= 1))+
 
 PlConsuption
 
-  ####Time Series tests####
+PlConsuption2<-ggplot(power_ym2, aes(x=MonthP, group= 1))+
+  geom_line(aes(y=NotSubMet_Wh, col="Unkown"), size=1.1) + 
+  geom_line(aes(y=Global_active_power_Wh, col="Global Household"), size=1.1) + 
+  geom_line(aes(y=Sub_metering_1_Wh, col="Kitchen"), size=1.1) + 
+  geom_line(aes(y=Sub_metering_2_Wh, col="Laundry Room"), size=1.1) + 
+  geom_line(aes(y=Sub_metering_3_Wh, col="Electric water-heater & Air Con"), size=1.1) + 
+  facet_grid(~YearP, scales = "free_x")+
+  theme(axis.text.x = element_text(size = 10, angle = 45, hjust = 1, face='bold'))+
+  labs(title = "Consuption Active Power by Month (NA interpolated)",
+       subtitle = "(2007-10)",
+       tag = "",
+       x = "",
+       y = "Consuption Wh",
+       colour = "Legend") 
 
-plot(tsAirgap, main="AirPassenger data with missing values")
+PlConsuption2
 
-
-statsNA(tsAirgap)
-
-par(mfrow=c(1,1)) #nomber of plots#
-
-plot(na.mean(tsAirgap, option = "mean") - AirPassengers, ylim = c(-mean(AirPassengers), mean(AirPassengers)), ylab = "Difference", main = "Mean")
-mean((na.mean(tsAirgap, option = "mean") - AirPassengers)^2)
-
-
-kings <- scan("http://robjhyndman.com/tsdldata/misc/kings.dat",skip=3)
-
-kingstimeseries <- ts(kings) #, frequency = 12 for do it by month
-kingstimeseries
-
-births <- scan("http://robjhyndman.com/tsdldata/data/nybirths.dat")
-
-birthstimeseries <- ts(births, frequency=12, start=c(1946,1))
-birthstimeseries
-
-plot.ts(birthstimeseries)
-
-souvenir <- scan("http://robjhyndman.com/tsdldata/data/fancy.dat")
-
-souvenirtimeseries <- ts(souvenir, frequency=12, start=c(1987,1))
-souvenirtimeseries
-
-plot.ts(souvenirtimeseries)
-
-logsouvenirtimeseries <- log(souvenirtimeseries)
-
-plot.ts(logsouvenirtimeseries)
-
-kingstimeseriesSMA3 <- SMA(kingstimeseries,n=8)
-
-plot.ts(kingstimeseriesSMA3)
-
-birthstimeseriescomponents <- decompose(birthstimeseries)
-
-plot(birthstimeseriescomponents)
-
+pl_na_dff<-grid.arrange(PlConsuption, PlConsuption2)
+pl_na_dff
 #### TIME SERIES IN POWER####
 
 
@@ -281,9 +292,53 @@ pwm_ts_dec<-decompose(pwm_ts)
 
 
 
-####~~~~NOTES - NEXT STEPS~~~~####
+####~~~~~~~~   NOTES - NEXT STEPS    ~~~~~~~~####
 
 #identify missing days#
 #na f¡values with prior#
 #na with the #
 #decompose without logarith#
+####Time Series tests####
+
+# plot(tsAirgap, main="AirPassenger data with missing values")
+# 
+# 
+# statsNA(tsAirgap)
+# 
+# par(mfrow=c(1,1)) #nomber of plots#
+# 
+# plot(na.mean(tsAirgap, option = "mean") - AirPassengers, ylim = c(-mean(AirPassengers), mean(AirPassengers)), ylab = "Difference", main = "Mean")
+# mean((na.mean(tsAirgap, option = "mean") - AirPassengers)^2)
+# 
+# 
+# kings <- scan("http://robjhyndman.com/tsdldata/misc/kings.dat",skip=3)
+# 
+# kingstimeseries <- ts(kings) #, frequency = 12 for do it by month
+# kingstimeseries
+# 
+# births <- scan("http://robjhyndman.com/tsdldata/data/nybirths.dat")
+# 
+# birthstimeseries <- ts(births, frequency=12, start=c(1946,1))
+# birthstimeseries
+# 
+# plot.ts(birthstimeseries)
+# 
+# souvenir <- scan("http://robjhyndman.com/tsdldata/data/fancy.dat")
+# 
+# souvenirtimeseries <- ts(souvenir, frequency=12, start=c(1987,1))
+# souvenirtimeseries
+# 
+# plot.ts(souvenirtimeseries)
+# 
+# logsouvenirtimeseries <- log(souvenirtimeseries)
+# 
+# plot.ts(logsouvenirtimeseries)
+# 
+# kingstimeseriesSMA3 <- SMA(kingstimeseries,n=8)
+# 
+# plot.ts(kingstimeseriesSMA3)
+# 
+# birthstimeseriescomponents <- decompose(birthstimeseries)
+# 
+# plot(birthstimeseriescomponents)
+
