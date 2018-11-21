@@ -25,6 +25,8 @@ library(magrittr)
 library(forecast)
 library(zoo)
 library(gridExtra)
+library(GGally)
+
 #### A._ SETTING FILES####
 
 setwd("C:/Users/pilar/Google Drive/A_DATA/UBIQUM/TASK3.1/task-3-1-define-a-data-science-process-PCANALS")
@@ -252,18 +254,24 @@ pl_na_dff
 
 
 ##by month#
-power_ts<-power_new %>% select(Date, Global_active_power_kWm)%>%
-  transmute(YeTs=year(Date), MoTs=month(Date, label = TRUE, abbr = FALSE), Global_active_power_kWm)%>%
+
+power_ts<-power_new %>% select(Date, Global_active_power_kWm, Global_reactive_power_kWm, 
+                               Sub_metering_1_Wh, Sub_metering_2_Wh,Sub_metering_3_Wh,NotSubMet_Wh,
+                               GlobalApparent_Wh, GlobalApparent_Wh, Global_active_power_Wh)%>%
+  transmute(YeTs=year(Date), MoTs=month(Date, label = TRUE, abbr = FALSE), 
+            Global_active_power_kWm, Global_reactive_power_kWm, Sub_metering_1_Wh,
+            Sub_metering_2_Wh,Sub_metering_3_Wh,NotSubMet_Wh,
+            GlobalApparent_Wh, GlobalApparent_Wh, Global_active_power_Wh)%>%
   group_by(YeTs, MoTs)%>%summarise_all(mean)
 
-power_ts2<-na.interp(power_ts)
+#power_ts2<-na.interp(power_ts)
 
 #by day#
 #power_day
 
 par(mfrow=c(2,1)) #number of plots#
 
-pwm_ts<-ts(power_ts2, frequency = 12, start=c(2006,12))
+pwm_ts<-ts(power_ts, frequency = 12, start=c(2006,12))
 
 pwd_ts<-ts(power_day[,1:2], frequency = 365, start=c(2006,12))
 
@@ -285,12 +293,42 @@ psead<-ggseasonplot(pwd_ts[,2], year.labels=TRUE, year.labels.left=TRUE)+ ylab("
 pseamd<-grid.arrange(pseam, psead)
 
 
-ggseasonplot(pwd_ts[,2], polar=TRUE)
+#ggseasonplot(pwm_ts[,3], polar=TRUE)
 
+ggsubseriesplot(pwm_ts[,3])+  ggtitle("Seasonal subseries plot: by month") 
+#season by month the horizontal line means the mean of subplot#
+
+
+autoplot(pwm_ts[,3:4], facets=TRUE) #Active vs Reactive
+
+qplot(Global_active_power_kWm, Global_reactive_power_kWm, data=as.data.frame(pwm_ts)) +
+  ylab("Global reactive power_kWm") + xlab("Global active power kWm") #relations betwenn attributes
+
+autoplot(pwm_ts[,3:8], facets=TRUE)
+
+GGally::ggpairs(as.data.frame(pwm_ts[,3:8])) ###correlation with features### 
+
+ggAcf(pwm_ts[,3], lag=48) ### pendiente arreglar la derivada####
+
+lambda<-BoxCox.lambda(pwm_ts)
+
+autoplot(BoxCox(pwm_ts[,3],lambda))
+
+res <- residuals(naive(pwm_ts))
+autoplot(res)
+####rework time series####
+
+plot.ts(pwm_ts[,3])
+
+
+#not log#
+
+#pwm_ts_log<-log(pwm_ts)
+pwm_ts_dec<-decompose(pwm_ts) #additive# there are NA values in trend and random#
+
+pwm_ts_dec 
 
 tsoutliers(pwm_ts[,2])
-
-
 
 # autoplot(pwm_ts[,3], as.numeric=FALSE)+ geom_line()+ stat_peaks(colour = "red") +
 #   stat_peaks(geom = "text", colour = "red", 
@@ -300,14 +338,15 @@ tsoutliers(pwm_ts[,2])
 #                vjust = 1.5, hjust = 1,  x.label.fmt = "%Y")+
 #   ylim(-500, 7300)
 
-pwm_ts_log<-log(pwm_ts)
-pwm_ts_dec<-decompose(pwm_ts)
+
+
+
 
 pwm_ts %>% changepoint::cpt.meanvar() %>% autoplot()
 strucchange::breakpoints(pwm_ts~1) %>% autoplot()
 
 ####~~~~~~~~   NOTES - NEXT STEPS    ~~~~~~~~####
-
+## pendiente de revisar la derivada de la linea 311#
 #identify missing minutess#
 #na f¡values with prior#
 #na with the #
@@ -315,48 +354,4 @@ strucchange::breakpoints(pwm_ts~1) %>% autoplot()
 
 #decompose without logarith#
 
-
-####Time Series tests####
-
-# plot(tsAirgap, main="AirPassenger data with missing values")
-# 
-# 
-# statsNA(tsAirgap)
-# 
-# par(mfrow=c(1,1)) #nomber of plots#
-# 
-# plot(na.mean(tsAirgap, option = "mean") - AirPassengers, ylim = c(-mean(AirPassengers), mean(AirPassengers)), ylab = "Difference", main = "Mean")
-# mean((na.mean(tsAirgap, option = "mean") - AirPassengers)^2)
-# 
-# 
-# kings <- scan("http://robjhyndman.com/tsdldata/misc/kings.dat",skip=3)
-# 
-# kingstimeseries <- ts(kings) #, frequency = 12 for do it by month
-# kingstimeseries
-# 
-# births <- scan("http://robjhyndman.com/tsdldata/data/nybirths.dat")
-# 
-# birthstimeseries <- ts(births, frequency=12, start=c(1946,1))
-# birthstimeseries
-# 
-# plot.ts(birthstimeseries)
-# 
-# souvenir <- scan("http://robjhyndman.com/tsdldata/data/fancy.dat")
-# 
-# souvenirtimeseries <- ts(souvenir, frequency=12, start=c(1987,1))
-# souvenirtimeseries
-# 
-# plot.ts(souvenirtimeseries)
-# 
-# logsouvenirtimeseries <- log(souvenirtimeseries)
-# 
-# plot.ts(logsouvenirtimeseries)
-# 
-# kingstimeseriesSMA3 <- SMA(kingstimeseries,n=8)
-# 
-# plot.ts(kingstimeseriesSMA3)
-# 
-# birthstimeseriescomponents <- decompose(birthstimeseries)
-# 
-# plot(birthstimeseriescomponents)
 
