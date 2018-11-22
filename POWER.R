@@ -27,7 +27,8 @@ library(zoo)
 library(gridExtra)
 library(GGally)
 library(imputeTS)
-
+library(forecast)
+library(stats)
 #### A._ SETTING FILES####
 
 setwd("C:/Users/pilar/Google Drive/A_DATA/UBIQUM/TASK3.1/task-3-1-define-a-data-science-process-PCANALS")
@@ -126,10 +127,10 @@ power_new2<-dplyr::mutate(power, NotSubMet_Wh = ((Global_active_power_kWm*1000)/
                           GlobalApparent_Wh = (Global_active_power_kWm+Global_reactive_power_kWm)*1000/60, 
                           Global_active_power_Wh=((Global_active_power_kWm*1000)/60))
 
-
+anyNA(power_new2)
 power_new2<-na.locf(power_new2)
 
-anyNA(power_new2)
+
 
 # na.approx(Cz, x=Cz$time)
 
@@ -186,6 +187,14 @@ head(power_time)
 
 nrow(power_time)-1==sum(power_time$consecutivetime, na.rm = T)
 
+
+
+ #group by weeks#
+
+power_week<-power_new%>%select(Date, Global_active_power_kWm)%>%
+  mutate(Year2=year(Date),WeekP=week(Date))%>%
+  group_by(Year2, WeekP)%>%
+  summarise(Global_active_power_kWm = mean(Global_active_power_kWm))
 
 #### PLOTS ####
 
@@ -256,19 +265,50 @@ pl_na_dff
 
 ##by month#
 
-power_ts<-power_new %>% select(Date, Global_active_power_kWm, Global_reactive_power_kWm, 
-                               Sub_metering_1_Wh, Sub_metering_2_Wh,Sub_metering_3_Wh,NotSubMet_Wh,
-                               GlobalApparent_Wh, GlobalApparent_Wh, Global_active_power_Wh)%>%
+power_df_m_ts<-power_new %>% select(Date, Global_active_power_kWm)%>%
   transmute(YeTs=year(Date), MoTs=month(Date, label = TRUE, abbr = FALSE), 
-            Global_active_power_kWm, Global_reactive_power_kWm, Sub_metering_1_Wh,
-            Sub_metering_2_Wh,Sub_metering_3_Wh,NotSubMet_Wh,
-            GlobalApparent_Wh, GlobalApparent_Wh, Global_active_power_Wh)%>%
+            Global_active_power_kWm)%>%
   group_by(YeTs, MoTs)%>%summarise_all(mean)
 
-#power_ts2<-na.interp(power_ts)
+
+anyNA(power_df_m_ts)
+power_df_m_ts<-na.locf(power_df_m_ts)
+
+### train 
+
+power_train_m_ts<-power_df_m_ts%>%ungroup()%>%filter(YeTs!=2010)
+
+###test #
+
+power_test_m_ts<-power_df_m_ts%>%ungroup()%>%filter(YeTs==2010)
+
 
 #by day#
-#power_day
+
+      #power_day
+      # power_day<-power_new%>%select(Date, Global_active_power_kWm)%>%
+      #   group_by(Date)%>%
+      #   summarise(Global_active_power_kWm = mean(Global_active_power_kWm))
+
+#by week#
+
+      # power_week<-power_new%>%select(Date, Global_active_power_kWm)%>%
+      #   mutate(Year2=year(Date),WeekP=week(Date))%>%
+      #   group_by(Year2, WeekP)%>%
+      #   summarise(Global_active_power_kWm = mean(Global_active_power_kWm))
+
+anyNA(power_week)
+power_df_w_ts<-na.locf(power_week)
+
+### train 
+
+power_train_w_ts<-power_df_w_ts%>%ungroup()%>%filter(Year2!=2010)
+
+###test #
+
+power_test_w_ts<-power_df_w_ts%>%ungroup()%>%filter(Year2==2010)
+
+
 
 par(mfrow=c(2,1)) #number of plots#
 
@@ -300,7 +340,7 @@ ggsubseriesplot(pwm_ts[,3])+  ggtitle("Seasonal subseries plot: by month")
 #season by month the horizontal line means the mean of subplot#
 
 
-autoplot(pwm_ts[,3:4], facets=TRUE) #Active vs Reactive
+autoplot(pwm_ts[,3:8], facets=TRUE) #Active vs Reactive
 
 qplot(Global_active_power_kWm, Global_reactive_power_kWm, data=as.data.frame(pwm_ts)) +
   ylab("Global reactive power_kWm") + xlab("Global active power kWm") #relations betwenn attributes
@@ -337,22 +377,28 @@ pwm_ts3 %>% stl(s.window='periodic') %>% autoplot  #smoothing is effectively rep
 
 plot(pwm_ts_dec)
 
-### holtwinters#
+#### holtwinters####
 
-pwm_fore<-HoltWinters(pwm_ts3)
+pwm_fore<-HoltWinters(pwm_ts3, )
 
 pwm_fore$fitted
 
 plot(pwm_fore)
 autoplot(pwm_fore)
 
+
 x<-forecast(pwm_fore, h = 6)
+hist(x$residuals)
+
 acf(x$residuals, na.action = na.pass)
 Box.test(x$residuals, lag = 6 )
 
-forecast.HoltWinters(pwm_fore, h=6)
-###CLOSE TO ONE###
+pwm_for_hw<-forecast:::forecast.HoltWinters(pwm_fore, h=6)
+plot(forecast:::forecast.HoltWinters(pwm_fore,h=12))
 
+plot(pwm_for_hw)
+
+###CLOSE TO ONE##
 
 
 
