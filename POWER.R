@@ -26,6 +26,7 @@ library(forecast)
 library(zoo)
 library(gridExtra)
 library(GGally)
+library(imputeTS)
 
 #### A._ SETTING FILES####
 
@@ -308,14 +309,14 @@ autoplot(pwm_ts[,3:8], facets=TRUE)
 
 GGally::ggpairs(as.data.frame(pwm_ts[,3:8])) ###correlation with features### 
 
-ggAcf(pwm_ts[,3], lag=48) ### pendiente arreglar la derivada####
+ggAcf(pwm_ts[,3], lag=20) ### pendiente arreglar la derivada####
 
 lambda<-BoxCox.lambda(pwm_ts)
 
 autoplot(BoxCox(pwm_ts[,3],lambda))
 
-res <- residuals(naive(pwm_ts))
-autoplot(res)
+# res <- residuals(naive(pwm_ts))
+# autoplot(res)
 ####rework time series####
 
 plot.ts(pwm_ts[,3])
@@ -324,20 +325,33 @@ plot.ts(pwm_ts[,3])
 #not log#
 
 #pwm_ts_log<-log(pwm_ts)
-pwm_ts_dec<-decompose(pwm_ts) #additive# there are NA values in trend and random#
+pwm_ts3<-pwm_ts[,3]
+
+pwm_ts_dec<-decompose(pwm_ts3) #additive# there are NA values in trend and random#
 
 pwm_ts_dec 
 
-tsoutliers(pwm_ts[,2])
+pwm_ts3 %>% decompose %>% autoplot
 
-# autoplot(pwm_ts[,3], as.numeric=FALSE)+ geom_line()+ stat_peaks(colour = "red") +
-#   stat_peaks(geom = "text", colour = "red", 
-#              vjust = -0.5, x.label.fmt = "%Y") +
-#   stat_valleys(colour = "blue") +
-#   stat_valleys(geom = "text", colour = "blue", angle = 45,
-#                vjust = 1.5, hjust = 1,  x.label.fmt = "%Y")+
-#   ylim(-500, 7300)
+pwm_ts3 %>% stl(s.window='periodic') %>% autoplot  #smoothing is effectively replaced by taking the mean. 
 
+plot(pwm_ts_dec)
+
+### holtwinters#
+
+pwm_fore<-HoltWinters(pwm_ts3)
+
+pwm_fore$fitted
+
+plot(pwm_fore)
+autoplot(pwm_fore)
+
+x<-forecast(pwm_fore, h = 6)
+acf(x$residuals, na.action = na.pass)
+Box.test(x$residuals, lag = 6 )
+
+forecast.HoltWinters(pwm_fore, h=6)
+###CLOSE TO ONE###
 
 
 
