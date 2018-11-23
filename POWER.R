@@ -23,7 +23,6 @@ library(TTR)
 library(ggfortify)
 library(magrittr)
 library(forecast)
-library(zoo)
 library(gridExtra)
 library(GGally)
 library(imputeTS)
@@ -260,27 +259,30 @@ PlConsuption2
 
 pl_na_dff<-grid.arrange(PlConsuption, PlConsuption2)
 pl_na_dff
+
+
+
 #### TIME SERIES IN POWER####
 
 
 ##by month#
 
-power_df_m_ts<-power_new %>% select(Date, Global_active_power_kWm)%>%
+power_df_m<-power_new %>% select(Date, Global_active_power_kWm)%>%
   transmute(YeTs=year(Date), MoTs=month(Date, label = TRUE, abbr = FALSE), 
             Global_active_power_kWm)%>%
   group_by(YeTs, MoTs)%>%summarise_all(mean)
+power_df_m_ts<-ts(power_df_m)
 
-
-anyNA(power_df_m_ts)
-power_df_m_ts<-na.locf(power_df_m_ts)
+anyNA(power_df_m)
+power_df_m<-na.locf(power_df_m)
 
 ### train 
 
-power_train_m_ts<-power_df_m_ts%>%ungroup()%>%filter(YeTs!=2010)
+power_train_m<-power_df_m%>%ungroup()%>%filter(YeTs!=2010)
 
 ###test #
 
-power_test_m_ts<-power_df_m_ts%>%ungroup()%>%filter(YeTs==2010)
+power_test_m<-power_df_m%>%ungroup()%>%filter(YeTs==2010)
 
 
 #by day#
@@ -289,6 +291,18 @@ power_test_m_ts<-power_df_m_ts%>%ungroup()%>%filter(YeTs==2010)
       # power_day<-power_new%>%select(Date, Global_active_power_kWm)%>%
       #   group_by(Date)%>%
       #   summarise(Global_active_power_kWm = mean(Global_active_power_kWm))
+anyNA(power_day)
+power_df_d<-na.locf(power_day)
+power_df_d<-power_df_d%>%select(Date, Global_active_power_kWm)
+
+
+### train 
+
+power_train_d<-power_df_d%>%ungroup()%>%filter(year(Date)!=2010)
+
+###test #
+
+power_test_d<-power_df_d%>%ungroup()%>%filter(year(Date)==2010)
 
 #by week#
 
@@ -298,26 +312,112 @@ power_test_m_ts<-power_df_m_ts%>%ungroup()%>%filter(YeTs==2010)
       #   summarise(Global_active_power_kWm = mean(Global_active_power_kWm))
 
 anyNA(power_week)
-power_df_w_ts<-na.locf(power_week)
+power_df_w<-na.locf(power_week)
 
 ### train 
 
-power_train_w_ts<-power_df_w_ts%>%ungroup()%>%filter(Year2!=2010)
+power_train_w<-power_df_w%>%ungroup()%>%filter(Year2!=2010)
 
 ###test #
 
-power_test_w_ts<-power_df_w_ts%>%ungroup()%>%filter(Year2==2010)
+power_test_w<-power_df_w%>%ungroup()%>%filter(Year2==2010)
+
+####time series with train####
+
+power_train_m_ts<-ts(power_train_m$Global_active_power_kWm, frequency = 12, start=c(2006,12))
+power_train_w_ts<-ts(power_train_w$Global_active_power_kWm, frequency = 53, start=c(2006,12))
+power_train_d_ts<-ts(power_train_d$Global_active_power_kWm, frequency = 365, start=c(2006,12))
+
+
+par(mfrow=c(3,1)) #number of plots
+plot.ts(power_train_m_ts)
+plot.ts(power_train_w_ts)
+plot.ts(power_train_d_ts)
+
+#decompose
+power_train_m_dec<-decompose(power_train_m_ts)
+power_train_w_dec<-decompose(power_train_w_ts)
+power_train_d_dec<-decompose(power_train_d_ts)
+
+
+par(mfrow=c(3,1)) #number of plots
+plot(power_train_m_dec)
+plot(power_train_w_dec)
+plot(power_train_d_dec)
+
+#HW#
+
+
+power_train_m_HW<-HoltWinters(power_train_m_ts)
+power_train_w_HW<-HoltWinters(power_train_w_ts)
+power_train_d_HW<-HoltWinters(power_train_d_ts)
+
+
+  #power_train_m_HW$fitted
+
+plot(power_train_m_HW)
+plot(power_train_w_HW)
+plot(power_train_d_HW)
+
+power_train_m_HW_for<-forecast(power_train_m_HW, h = 6)
+hist(power_train_m_HW_for$residuals)
+
+acf(power_train_m_HW_for$residuals, na.action = na.pass)
+Box.test(power_train_m_HW_for$residuals, lag = 6 )
+
+power_train_m_HW_for2<-
+forecast:::forecast.HoltWinters(power_train_m_HW_for, h = 12)
+
+
+plot(power_train_m_HW_for)
+
+####ARIMA####
+
+autoplot(power_train_m_ts)
+autoplot(power_train_w_ts)
+autoplot(power_train_d_ts)
+
+power_train_m_arima<-auto.arima(power_train_m_ts)
+power_train_w_arima<-auto.arima(power_train_w_ts)
+power_train_d_arima<-auto.arima(power_train_d_ts)
+
+power_train_m_arima_fore<-forecast:::forecast.Arima(power_train_m_arima, h=10)
+power_train_w_arima_fore<-forecast:::forecast.Arima(power_train_w_arima, h=40)
+power_train_d_arima_fore<-forecast:::forecast.Arima(power_train_d_arima, h=300)
+
+power_train_m_arima_fore$fitted
+
+acf(power_train_m_arima$residuals, na.action = na.pass)
+Box.test(power_train_m_arima$residuals, lag = 6 )
+checkresiduals(power_train_m_arima)
+
+acf(power_train_w_arima$residuals, na.action = na.pass)
+acf(power_train_d_arima$residuals, na.action = na.pass)
+checkresiduals(power_train_w_arima)
+checkresiduals(power_train_d_arima)
 
 
 
-par(mfrow=c(2,1)) #number of plots#
 
+autoplot(power_train_m_ts)+
+
+
+
+
+
+
+#### tries with all values ####
 pwm_ts<-ts(power_ts, frequency = 12, start=c(2006,12))
 
 pwd_ts<-ts(power_day[,1:2], frequency = 365, start=c(2006,12))
 
 plot.ts(pwm_ts[,3])
 plot.ts(pwd_ts[,2])
+
+
+##### pruebas TS plots - plots utiles ####
+
+par(mfrow=c(2,1)) #number of plots#
 
 ptsm<-autoplot(pwm_ts[,3])+ ggtitle("Global Consuption by month")
 ptsd<-autoplot(pwd_ts[,2])+ ggtitle("Global Consuption by day")
@@ -349,7 +449,7 @@ autoplot(pwm_ts[,3:8], facets=TRUE)
 
 GGally::ggpairs(as.data.frame(pwm_ts[,3:8])) ###correlation with features### 
 
-ggAcf(pwm_ts[,3], lag=20) ### pendiente arreglar la derivada####
+ggAcf(pwm_ts[,3], lag=20) ### pendiente arreglar la derivada###
 
 lambda<-BoxCox.lambda(pwm_ts)
 
@@ -357,9 +457,8 @@ autoplot(BoxCox(pwm_ts[,3],lambda))
 
 # res <- residuals(naive(pwm_ts))
 # autoplot(res)
-####rework time series####
+####rework time series_all values####
 
-plot.ts(pwm_ts[,3])
 
 
 #not log#
@@ -379,7 +478,7 @@ plot(pwm_ts_dec)
 
 #### holtwinters####
 
-pwm_fore<-HoltWinters(pwm_ts3, )
+pwm_fore<-HoltWinters(pwm_ts3)
 
 pwm_fore$fitted
 
