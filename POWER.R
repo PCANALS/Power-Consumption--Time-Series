@@ -260,12 +260,12 @@ PlConsuption2
 pl_na_dff<-grid.arrange(PlConsuption, PlConsuption2)
 pl_na_dff
 
-
+######################################################################################################
 
 #### TIME SERIES IN POWER####
 
 
-##by month#
+##Frame by month#
 
 power_df_m<-power_new %>% select(Date, Global_active_power_kWm)%>%
   transmute(YeTs=year(Date), MoTs=month(Date, label = TRUE, abbr = FALSE), 
@@ -275,25 +275,52 @@ power_df_m_ts<-ts(power_df_m)
 
 anyNA(power_df_m)
 power_df_m<-na.locf(power_df_m)
+power_m_ts<-ts(power_df_m, frequency = 12, start=c(2006,12))
 
-### train 
+# train #
 
 power_train_m<-power_df_m%>%ungroup()%>%filter(YeTs!=2010)
 
-###test #
+#test #
 
 power_test_m<-power_df_m%>%ungroup()%>%filter(YeTs==2010)
 
 
-#by day#
 
-      #power_day
-      # power_day<-power_new%>%select(Date, Global_active_power_kWm)%>%
-      #   group_by(Date)%>%
+#Frame by week#
+
+      # power_week<-power_new%>%select(Date, Global_active_power_kWm)%>%
+      #   mutate(Year2=year(Date),WeekP=week(Date))%>%
+      #   group_by(Year2, WeekP)%>%
       #   summarise(Global_active_power_kWm = mean(Global_active_power_kWm))
+
+anyNA(power_week)
+power_df_w<-na.locf(power_week)
+power_w_ts<-ts(power_df_w, frequency = 53, start=c(2006,12))
+
+
+### train 
+
+power_train_w<-power_df_w%>%ungroup()%>%filter(Year2!=2010)
+
+###test #
+
+power_test_w<-power_df_w%>%ungroup()%>%filter(Year2==2010)
+
+
+
+
+##Frame by day##
+
+#power_day
+# power_day<-power_new%>%select(Date, Global_active_power_kWm)%>%
+#   group_by(Date)%>%
+#   summarise(Global_active_power_kWm = mean(Global_active_power_kWm))
 anyNA(power_day)
 power_df_d<-na.locf(power_day)
 power_df_d<-power_df_d%>%select(Date, Global_active_power_kWm)
+
+power_d_ts<-ts(power_df_d, frequency = 365, start=c(2006,12))
 
 
 ### train 
@@ -304,35 +331,25 @@ power_train_d<-power_df_d%>%ungroup()%>%filter(year(Date)!=2010)
 
 power_test_d<-power_df_d%>%ungroup()%>%filter(year(Date)==2010)
 
-#by week#
-
-      # power_week<-power_new%>%select(Date, Global_active_power_kWm)%>%
-      #   mutate(Year2=year(Date),WeekP=week(Date))%>%
-      #   group_by(Year2, WeekP)%>%
-      #   summarise(Global_active_power_kWm = mean(Global_active_power_kWm))
-
-anyNA(power_week)
-power_df_w<-na.locf(power_week)
-
-### train 
-
-power_train_w<-power_df_w%>%ungroup()%>%filter(Year2!=2010)
-
-###test #
-
-power_test_w<-power_df_w%>%ungroup()%>%filter(Year2==2010)
-
-####time series with train####
+####time series with train & test####
 
 power_train_m_ts<-ts(power_train_m$Global_active_power_kWm, frequency = 12, start=c(2006,12))
 power_train_w_ts<-ts(power_train_w$Global_active_power_kWm, frequency = 53, start=c(2006,12))
 power_train_d_ts<-ts(power_train_d$Global_active_power_kWm, frequency = 365, start=c(2006,12))
 
 
+power_test_m_ts<-ts(power_test_m$Global_active_power_kWm, frequency = 12, start=c(2010,01))
+power_test_w_ts<-ts(power_test_w$Global_active_power_kWm, frequency = 53, start=c(2010,01))
+power_test_d_ts<-ts(power_test_d$Global_active_power_kWm, frequency = 365, start=c(2010,01))
+
 par(mfrow=c(3,1)) #number of plots
 plot.ts(power_train_m_ts)
 plot.ts(power_train_w_ts)
 plot.ts(power_train_d_ts)
+
+plot.ts(power_test_m_ts)
+plot.ts(power_test_w_ts)
+plot.ts(power_test_d_ts)
 
 #decompose
 power_train_m_dec<-decompose(power_train_m_ts)
@@ -346,7 +363,6 @@ plot(power_train_w_dec)
 plot(power_train_d_dec)
 
 #HW#
-
 
 power_train_m_HW<-HoltWinters(power_train_m_ts)
 power_train_w_HW<-HoltWinters(power_train_w_ts)
@@ -368,8 +384,14 @@ Box.test(power_train_m_HW_for$residuals, lag = 6 )
 power_train_m_HW_for2<-
 forecast:::forecast.HoltWinters(power_train_m_HW_for, h = 12)
 
+accuracy(power_train_m_HW_for,power_test_m_ts)
 
 plot(power_train_m_HW_for)
+
+autoplot(power_test_m_ts) + autolayer(power_train_m_HW_for, PI=FALSE)
+
+autoplot(power_train_m_HW_for)
+
 
 ####ARIMA####
 
@@ -398,12 +420,19 @@ checkresiduals(power_train_d_arima)
 
 
 
+autoplot(power_train_m_ts)+autolayer(power_train_m_arima_fore)
 
-autoplot(power_train_m_ts)+
+## LINEAR REGRESION ##
 
 
 
+tslm(power_train_m_ts~ trend + season)
 
+
+
+## ALL FORECASTING ###
+
+###############################################################################################3
 
 
 #### tries with all values ####
