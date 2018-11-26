@@ -112,7 +112,10 @@ power_na2 <- power[rowSums(is.na(power)) >= 1 & rowSums(is.na(power)) < length(c
 #### C.-2.2 Remove NA####
 
 #change de NA for 0##  its need a value to do the sums in the group-by or remove de rows#
-power_new[is.na(power_new)] <- 0
+
+
+#power_new[is.na(power_new)] <- 0
+power_new<-na.locf(power_new)
 
 
 #### C.-2.3 Change NA with the closest values - INTERPOLATE####
@@ -260,6 +263,9 @@ PlConsuption2
 pl_na_dff<-grid.arrange(PlConsuption, PlConsuption2)
 pl_na_dff
 
+
+
+#### RUN WITHOUT ISSUES####
 ######################################################################################################
 
 #### TIME SERIES IN POWER####
@@ -270,12 +276,9 @@ pl_na_dff
 power_df_m<-power_new %>% select(Date, Global_active_power_kWm)%>%
   transmute(YeTs=year(Date), MoTs=month(Date, label = TRUE, abbr = FALSE), 
             Global_active_power_kWm)%>%
-  group_by(YeTs, MoTs)%>%summarise_all(mean)
-power_df_m_ts<-ts(power_df_m)
+  group_by(YeTs, MoTs)%>%summarise_all(sum)
 
-anyNA(power_df_m)
-power_df_m<-na.locf(power_df_m)
-power_m_ts<-ts(power_df_m, frequency = 12, start=c(2006,12))
+power_m_ts<-ts(power_df_m$Global_active_power_kWm, frequency = 12, start=c(2006,12))
 
 # train #
 
@@ -294,9 +297,8 @@ power_test_m<-power_df_m%>%ungroup()%>%filter(YeTs==2010)
       #   group_by(Year2, WeekP)%>%
       #   summarise(Global_active_power_kWm = mean(Global_active_power_kWm))
 
-anyNA(power_week)
-power_df_w<-na.locf(power_week)
-power_w_ts<-ts(power_df_w, frequency = 53, start=c(2006,12))
+power_df_w<-power_week
+power_w_ts<-ts(power_df_w$Global_active_power_kWm, frequency = 53, start=c(2006,12))
 
 
 ### train 
@@ -316,11 +318,12 @@ power_test_w<-power_df_w%>%ungroup()%>%filter(Year2==2010)
 # power_day<-power_new%>%select(Date, Global_active_power_kWm)%>%
 #   group_by(Date)%>%
 #   summarise(Global_active_power_kWm = mean(Global_active_power_kWm))
-anyNA(power_day)
-power_df_d<-na.locf(power_day)
+
+anyNA(power_day[,"Global_active_power_kWm"])
+
 power_df_d<-power_df_d%>%select(Date, Global_active_power_kWm)
 
-power_d_ts<-ts(power_df_d, frequency = 365, start=c(2006,12))
+power_d_ts<-ts(power_df_d$Global_active_power_kWm, frequency = 365, start=c(2006,12))
 
 
 ### train 
@@ -342,7 +345,7 @@ power_test_m_ts<-ts(power_test_m$Global_active_power_kWm, frequency = 12, start=
 power_test_w_ts<-ts(power_test_w$Global_active_power_kWm, frequency = 53, start=c(2010,01))
 power_test_d_ts<-ts(power_test_d$Global_active_power_kWm, frequency = 365, start=c(2010,01))
 
-par(mfrow=c(3,1)) #number of plots
+#par(mfrow=c(3,1)) #number of plots
 # plot.ts(power_train_m_ts)
 # plot.ts(power_train_w_ts)
 # plot.ts(power_train_d_ts)
@@ -361,6 +364,8 @@ power_train_d_dec<-decompose(power_train_d_ts)
 # plot(power_train_m_dec)
 # plot(power_train_w_dec)
 # plot(power_train_d_dec)
+
+
 
 #HW#
 
@@ -381,7 +386,9 @@ power_d_HW<-HoltWinters(power_d_ts)
 # plot(power_train_d_HW)
 
 
+
 ####HW FORECASTING###
+
 power_train_m_HW_for<-forecast(power_train_m_HW, h = 11)
 power_m_HW_for<-forecast(power_m_HW, h = 48)
 
@@ -391,15 +398,22 @@ power_w_HW_for<-forecast(power_w_HW, h = 210)
 power_train_d_HW_for<-forecast(power_train_d_HW, h = 330)
 power_d_HW_for<-forecast(power_d_HW, h = 1440)
 
+
+#### RUN WITHOUT ISSUES####
+
+
 ####HW ERROR####
 hist(power_train_m_HW_for$residuals)
 
 acf(power_train_m_HW_for$residuals, na.action = na.pass)
 checkresiduals(power_train_m_HW)
+#PENDING - REMOVE OUTLIERS#
 Box.test(power_train_m_HW_for$residuals, lag = 6 )
 
 accuracy(power_train_m_HW_for,power_test_m_ts)
 accuracy(power_train_w_HW_for,power_test_w_ts)
+
+##error#
 accuracy(power_train_d_HW_for,power_test_d_ts)
 
 
@@ -409,8 +423,6 @@ hist(power_train_m_HW_for$residuals)
 
 acf(power_train_m_HW_for$residuals, na.action = na.pass)
 Box.test(power_train_m_HW_for$residuals, lag = 6 )
-
-
 
 accuracy(power_train_m_HW_for,power_test_m_ts)
 
