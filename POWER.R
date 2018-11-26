@@ -6,20 +6,24 @@ Sys.setlocale(category = "LC_ALL", locale = "english")
 
 
 #### ._LIBRARIES####
+pacman::p_load(tidyverse,dplyr,lubridate, forecast, tseries, gridExtra)
+# library(dplyr)
+# # library(ggplot2)
+# # library(tidyr)
+# library(lubridate)
+# library(stats)
+# library(magrittr)
+# library(gridExtra)
+# library(GGally)
+# library(forecast)
+# library(imputeTS)
+# library(TTR)
+# library(ggfortify)
 
-library(dplyr)
-library(ggplot2)
-library(tidyr)
-library(lubridate)
-library(imputeTS)
-library(TTR)
-library(ggfortify)
-library(magrittr)
-library(gridExtra)
-library(GGally)
-library(imputeTS)
-library(forecast)
-library(stats)
+
+# library(imputeTS)
+
+
 
 
 #### A._ SETTING FILES####
@@ -47,6 +51,9 @@ power<-powero # to keep original#
 ##changing class##
 
 power$DateTime<-lubridate::dmy_hms(paste(power$Date,power$Time))
+
+
+
 power$Date<-lubridate::dmy(power$Date)
 power$Time<-lubridate::hms(power$Time)
 
@@ -390,7 +397,7 @@ power_train_w_HW_for<-forecast(power_train_w_HW, h = 48)
 power_w_HW_for<-forecast(power_w_HW, h = 210)
 
 power_train_d_HW_for<-forecast(power_train_d_HW, h = 330)
-power_d_HW_for<-forecast(power_d_HW, h = 1440)
+power_d_HW_for<-forecast(power_d_HW, h = 1441)
 
 #### RUN WITHOUT ISSUES####
 
@@ -432,7 +439,7 @@ p_hw_d<-autoplot(power_train_d_ts) +
   autolayer(power_d_HW_for, PI=FALSE, col="blue", size=1)
 
 
-plot_HW_for<-grid.arrange(p_hw_m, p_hw_w, p_hw_d)
+plot_HW_for<-grid.arrange(p_hw_w, p_hw_d)
 
 ####ARIMA####
 
