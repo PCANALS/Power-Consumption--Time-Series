@@ -7,27 +7,21 @@ Sys.setlocale(category = "LC_ALL", locale = "english")
 
 #### ._LIBRARIES####
 
-library(tidyselect)
-#install.packages("tidyverse")
-#library(tidyverse)
-#####includes:###
 library(dplyr)
 library(ggplot2)
 library(tidyr)
-#tidyverse_update()
-#library(tidyselect)
 library(lubridate)
 library(imputeTS)
-library(R.utils)
 library(TTR)
 library(ggfortify)
 library(magrittr)
-library(forecast)
 library(gridExtra)
 library(GGally)
 library(imputeTS)
 library(forecast)
 library(stats)
+
+
 #### A._ SETTING FILES####
 
 setwd("C:/Users/pilar/Google Drive/A_DATA/UBIQUM/TASK3.1/task-3-1-define-a-data-science-process-PCANALS")
@@ -265,7 +259,7 @@ pl_na_dff
 
 
 
-#### RUN WITHOUT ISSUES####
+
 ######################################################################################################
 
 #### TIME SERIES IN POWER####
@@ -321,7 +315,7 @@ power_test_w<-power_df_w%>%ungroup()%>%filter(Year2==2010)
 
 anyNA(power_day[,"Global_active_power_kWm"])
 
-power_df_d<-power_df_d%>%select(Date, Global_active_power_kWm)
+power_df_d<-power_day%>%select(Date, Global_active_power_kWm)
 
 power_d_ts<-ts(power_df_d$Global_active_power_kWm, frequency = 365, start=c(2006,12))
 
@@ -387,7 +381,7 @@ power_d_HW<-HoltWinters(power_d_ts)
 
 
 
-####HW FORECASTING###
+####HW FORECASTING####
 
 power_train_m_HW_for<-forecast(power_train_m_HW, h = 11)
 power_m_HW_for<-forecast(power_m_HW, h = 48)
@@ -397,7 +391,6 @@ power_w_HW_for<-forecast(power_w_HW, h = 210)
 
 power_train_d_HW_for<-forecast(power_train_d_HW, h = 330)
 power_d_HW_for<-forecast(power_d_HW, h = 1440)
-
 
 #### RUN WITHOUT ISSUES####
 
@@ -416,17 +409,6 @@ accuracy(power_train_w_HW_for,power_test_w_ts)
 ##error#
 accuracy(power_train_d_HW_for,power_test_d_ts)
 
-
-
-power_train_m_HW_for<-forecast(power_train_m_HW, h = 6)
-hist(power_train_m_HW_for$residuals)
-
-acf(power_train_m_HW_for$residuals, na.action = na.pass)
-Box.test(power_train_m_HW_for$residuals, lag = 6 )
-
-accuracy(power_train_m_HW_for,power_test_m_ts)
-
-plot(power_train_m_HW_for)
 
 autoplot(power_test_m_ts) + autolayer(power_train_m_HW_for, PI=FALSE)
 
@@ -450,21 +432,33 @@ p_hw_d<-autoplot(power_train_d_ts) +
   autolayer(power_d_HW_for, PI=FALSE, col="blue", size=1)
 
 
-grid.arrange(p_hw_m, p_hw_w, p_hw_d)
+plot_HW_for<-grid.arrange(p_hw_m, p_hw_w, p_hw_d)
 
 ####ARIMA####
 
-autoplot(power_train_m_ts)
-autoplot(power_train_w_ts)
-autoplot(power_train_d_ts)
+# autoplot(power_train_m_ts)
+# autoplot(power_train_w_ts)
+# autoplot(power_train_d_ts)
 
 power_train_m_arima<-auto.arima(power_train_m_ts)
 power_train_w_arima<-auto.arima(power_train_w_ts)
 power_train_d_arima<-auto.arima(power_train_d_ts)
+#all data##
+power_m_arima<-auto.arima(power_m_ts)
+power_w_arima<-auto.arima(power_w_ts)
+power_d_arima<-auto.arima(power_d_ts)
+power_d_arima_manu<-arima(power_d_ts,order = c(2,1,3), seasonal = c(0,0,0))
 
-power_train_m_arima_fore<-forecast:::forecast.Arima(power_train_m_arima, h=10)
-power_train_w_arima_fore<-forecast:::forecast.Arima(power_train_w_arima, h=40)
-power_train_d_arima_fore<-forecast:::forecast.Arima(power_train_d_arima, h=300)
+power_train_m_arima_for<-forecast:::forecast.Arima(power_train_m_arima, h=11)
+power_train_w_arima_for<-forecast:::forecast.Arima(power_train_w_arima, h=48)
+power_train_d_arima_for<-forecast:::forecast.Arima(power_train_d_arima, h=330)
+
+power_m_arima_for<-forecast(power_m_arima, h = 48)
+power_w_arima_for<-forecast(power_w_arima, h = 210)
+power_d_arima_for<-forecast(power_d_arima, h = 1440)
+power_d_arima_for_manu<-forecast(power_d_arima_manu, h = 1440)
+
+autoplot(power_d_arima_for_manu)
 
 power_train_m_arima_fore$fitted
 
@@ -477,120 +471,106 @@ acf(power_train_d_arima$residuals, na.action = na.pass)
 checkresiduals(power_train_w_arima)
 checkresiduals(power_train_d_arima)
 
+accuracy(power_train_m_arima_for,power_test_m_ts)
+accuracy(power_train_w_arima_for,power_test_w_ts)
+
+###error#
+accuracy(power_train_d_arima_for,power_test_d_ts)
+
+autoplot(power_train_m_ts)+autolayer(power_train_m_arima_for, PI=FALSE)
 
 
-autoplot(power_train_m_ts)+autolayer(power_train_m_arima_fore)
 
-## LINEAR REGRESION ##
-
-
-
-tslm(power_train_m_ts~ trend + season)
+#plot prediction by month#
+p_arima_m<-autoplot(power_train_m_ts) + 
+  autolayer(power_train_m_arima_for, PI=FALSE, col= "coral", size=1)+
+  autolayer(power_m_arima_for, PI=FALSE, col="firebrick2", size=1)
 
 
+#plot prediction by week#
+p_arima_w<-autoplot(power_train_w_ts) + 
+  autolayer(power_train_w_arima_for, PI=FALSE, col= "green", size=1)+
+  autolayer(power_w_arima_for, PI=FALSE, col="mediumspringgreen", size=1)
+
+#plot prediction by week#
+p_arima_d<-autoplot(power_train_d_ts) + 
+  autolayer(power_train_d_arima_for, PI=FALSE, col= "cyan", size=1)+
+  autolayer(power_d_arima_for, PI=FALSE, col="blue", size=1)
+
+
+plot_arima_for<-grid.arrange(p_arima_m, p_arima_w, p_arima_d)
+
+#### LINEAR REGRESION ####
+
+
+power_train_m_tslm<-tslm(power_train_m_ts~ trend + season)
+power_train_w_tslm<-tslm(power_train_w_ts~ trend + season)
+power_train_d_tslm<-tslm(power_train_d_ts~ trend + season)
+
+
+#all data##
+power_m_tslm<-tslm(power_m_ts~ trend + season)
+power_w_tslm<-tslm(power_w_ts~ trend + season)
+power_d_tslm<-tslm(power_d_ts~ trend + season)
+
+##forecast#
+
+power_train_m_tslm_for<-forecast(power_train_m_tslm, h=11)
+power_train_w_tslm_for<-forecast(power_train_w_tslm, h=48)
+power_train_d_tslm_for<-forecast(power_train_d_tslm, h=330)
+
+power_m_tslm_for<-forecast(power_m_tslm, h = 48)
+power_w_tslm_for<-forecast(power_w_tslm, h = 210)
+power_d_tslm_for<-forecast(power_d_tslm, h = 1440)
+
+autoplot(power_d_tslm_for)
+
+accuracy(power_train_m_tslm_for,power_test_m_ts)
+accuracy(power_train_w_tslm_for,power_test_w_ts)
+accuracy(power_train_d_tslm_for,power_test_d_ts)
+
+#plot prediction by month#
+p_tslm_m<-autoplot(power_train_m_ts) + 
+  autolayer(power_train_m_tslm_for, PI=FALSE, col= "coral", size=1)+
+  autolayer(power_m_tslm_for, PI=FALSE, col="firebrick2", size=1)
+
+
+#plot prediction by week#
+p_tslm_w<-autoplot(power_train_w_ts) + 
+  autolayer(power_train_w_tslm_for, PI=FALSE, col= "green", size=1)+
+  autolayer(power_w_tslm_for, PI=FALSE, col="mediumspringgreen", size=1)
+
+#plot prediction by week#
+p_tslm_d<-autoplot(power_train_d_ts) + 
+  autolayer(power_train_d_tslm_for, PI=FALSE, col= "cyan", size=1)+
+  autolayer(power_d_tslm_for, PI=FALSE, col="blue", size=1)
+
+plot_tslm_for<-grid.arrange(p_tslm_m, p_tslm_w, p_tslm_d)
+
+
+
+####MODEL SELECTION RESUMEN####
+
+plot_HW_for
+plot_arima_for
+plot_tslm_for
+
+accuracy(power_train_m_HW_for,power_test_m_ts)
+accuracy(power_train_w_HW_for,power_test_w_ts)
+accuracy(power_train_d_HW_for,power_test_d_ts)#error#
+
+accuracy(power_train_m_arima_for,power_test_m_ts)
+accuracy(power_train_w_arima_for,power_test_w_ts)
+accuracy(power_train_d_arima_for,power_test_d_ts)#error#
+
+accuracy(power_train_m_tslm_for,power_test_m_ts)
+accuracy(power_train_w_tslm_for,power_test_w_ts)
+accuracy(power_train_d_tslm_for,power_test_d_ts)#error#
 
 ## ALL FORECASTING ###
 
 ###############################################################################################3
 
-
-#### tries with all values ####
-pwm_ts<-ts(power_ts, frequency = 12, start=c(2006,12))
-
-pwd_ts<-ts(power_day[,1:2], frequency = 365, start=c(2006,12))
-
-plot.ts(pwm_ts[,3])
-plot.ts(pwd_ts[,2])
-
-
-##### pruebas TS plots - plots utiles ####
-
-par(mfrow=c(2,1)) #number of plots#
-
-ptsm<-autoplot(pwm_ts[,3])+ ggtitle("Global Consuption by month")
-ptsd<-autoplot(pwd_ts[,2])+ ggtitle("Global Consuption by day")
-
-ptsmd<-grid.arrange(ptsm, ptsd)
-
-#plot to see differences with seasons#
-pseam<-ggseasonplot(pwm_ts[,3], year.labels=TRUE, year.labels.left=TRUE)+ ylab(" Consuption ")+
-                      ggtitle("Seasonal plot: Global Consuption by month")
-
-psead<-ggseasonplot(pwd_ts[,2], year.labels=TRUE, year.labels.left=TRUE)+ ylab(" Consuption ")+
-  ggtitle("Seasonal plot: Global Consuption by day")
-
-pseamd<-grid.arrange(pseam, psead)
-
-
-#ggseasonplot(pwm_ts[,3], polar=TRUE)
-
-ggsubseriesplot(pwm_ts[,3])+  ggtitle("Seasonal subseries plot: by month") 
-#season by month the horizontal line means the mean of subplot#
-
-
-autoplot(pwm_ts[,3:8], facets=TRUE) #Active vs Reactive
-
-qplot(Global_active_power_kWm, Global_reactive_power_kWm, data=as.data.frame(pwm_ts)) +
-  ylab("Global reactive power_kWm") + xlab("Global active power kWm") #relations betwenn attributes
-
-autoplot(pwm_ts[,3:8], facets=TRUE)
-
-GGally::ggpairs(as.data.frame(pwm_ts[,3:8])) ###correlation with features### 
-
-ggAcf(pwm_ts[,3], lag=20) ### pendiente arreglar la derivada###
-
-lambda<-BoxCox.lambda(pwm_ts)
-
-autoplot(BoxCox(pwm_ts[,3],lambda))
-
-# res <- residuals(naive(pwm_ts))
-# autoplot(res)
-####rework time series_all values####
-
-
-
-#not log#
-
-#pwm_ts_log<-log(pwm_ts)
-pwm_ts3<-pwm_ts[,3]
-
-pwm_ts_dec<-decompose(pwm_ts3) #additive# there are NA values in trend and random#
-
-pwm_ts_dec 
-
-pwm_ts3 %>% decompose %>% autoplot
-
-pwm_ts3 %>% stl(s.window='periodic') %>% autoplot  #smoothing is effectively replaced by taking the mean. 
-
-plot(pwm_ts_dec)
-
-#### holtwinters####
-
-pwm_fore<-HoltWinters(pwm_ts3)
-
-pwm_fore$fitted
-
-plot(pwm_fore)
-autoplot(pwm_fore)
-
-
-x<-forecast(pwm_fore, h = 6)
-hist(x$residuals)
-
-acf(x$residuals, na.action = na.pass)
-Box.test(x$residuals, lag = 6 )
-
-pwm_for_hw<-forecast:::forecast.HoltWinters(pwm_fore, h=6)
-plot(forecast:::forecast.HoltWinters(pwm_fore,h=12))
-
-plot(pwm_for_hw)
-
-###CLOSE TO ONE##
-
-
-
-pwm_ts %>% changepoint::cpt.meanvar() %>% autoplot()
-strucchange::breakpoints(pwm_ts~1) %>% autoplot()
 
 ####~~~~~~~~   NOTES - NEXT STEPS    ~~~~~~~~####
 ## pendiente de revisar la derivada de la linea 311#
