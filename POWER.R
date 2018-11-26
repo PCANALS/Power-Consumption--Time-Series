@@ -343,13 +343,13 @@ power_test_w_ts<-ts(power_test_w$Global_active_power_kWm, frequency = 53, start=
 power_test_d_ts<-ts(power_test_d$Global_active_power_kWm, frequency = 365, start=c(2010,01))
 
 par(mfrow=c(3,1)) #number of plots
-plot.ts(power_train_m_ts)
-plot.ts(power_train_w_ts)
-plot.ts(power_train_d_ts)
-
-plot.ts(power_test_m_ts)
-plot.ts(power_test_w_ts)
-plot.ts(power_test_d_ts)
+# plot.ts(power_train_m_ts)
+# plot.ts(power_train_w_ts)
+# plot.ts(power_train_d_ts)
+# 
+# plot.ts(power_test_m_ts)
+# plot.ts(power_test_w_ts)
+# plot.ts(power_test_d_ts)
 
 #decompose
 power_train_m_dec<-decompose(power_train_m_ts)
@@ -357,23 +357,52 @@ power_train_w_dec<-decompose(power_train_w_ts)
 power_train_d_dec<-decompose(power_train_d_ts)
 
 
-par(mfrow=c(3,1)) #number of plots
-plot(power_train_m_dec)
-plot(power_train_w_dec)
-plot(power_train_d_dec)
+# par(mfrow=c(3,1)) #number of plots
+# plot(power_train_m_dec)
+# plot(power_train_w_dec)
+# plot(power_train_d_dec)
 
 #HW#
 
 power_train_m_HW<-HoltWinters(power_train_m_ts)
+power_m_HW<-HoltWinters(power_m_ts)
+
 power_train_w_HW<-HoltWinters(power_train_w_ts)
+power_w_HW<-HoltWinters(power_w_ts)
+
 power_train_d_HW<-HoltWinters(power_train_d_ts)
+power_d_HW<-HoltWinters(power_d_ts)
 
 
-  #power_train_m_HW$fitted
+#power_train_m_HW$fitted
 
-plot(power_train_m_HW)
-plot(power_train_w_HW)
-plot(power_train_d_HW)
+# plot(power_train_m_HW)
+# plot(power_train_w_HW)
+# plot(power_train_d_HW)
+
+
+####HW FORECASTING###
+power_train_m_HW_for<-forecast(power_train_m_HW, h = 11)
+power_m_HW_for<-forecast(power_m_HW, h = 48)
+
+power_train_w_HW_for<-forecast(power_train_w_HW, h = 48)
+power_w_HW_for<-forecast(power_w_HW, h = 210)
+
+power_train_d_HW_for<-forecast(power_train_d_HW, h = 330)
+power_d_HW_for<-forecast(power_d_HW, h = 1440)
+
+####HW ERROR####
+hist(power_train_m_HW_for$residuals)
+
+acf(power_train_m_HW_for$residuals, na.action = na.pass)
+checkresiduals(power_train_m_HW)
+Box.test(power_train_m_HW_for$residuals, lag = 6 )
+
+accuracy(power_train_m_HW_for,power_test_m_ts)
+accuracy(power_train_w_HW_for,power_test_w_ts)
+accuracy(power_train_d_HW_for,power_test_d_ts)
+
+
 
 power_train_m_HW_for<-forecast(power_train_m_HW, h = 6)
 hist(power_train_m_HW_for$residuals)
@@ -381,8 +410,7 @@ hist(power_train_m_HW_for$residuals)
 acf(power_train_m_HW_for$residuals, na.action = na.pass)
 Box.test(power_train_m_HW_for$residuals, lag = 6 )
 
-power_train_m_HW_for2<-
-forecast:::forecast.HoltWinters(power_train_m_HW_for, h = 12)
+
 
 accuracy(power_train_m_HW_for,power_test_m_ts)
 
@@ -392,6 +420,25 @@ autoplot(power_test_m_ts) + autolayer(power_train_m_HW_for, PI=FALSE)
 
 autoplot(power_train_m_HW_for)
 
+
+#plot prediction by month#
+p_hw_m<-autoplot(power_train_m_ts) + 
+  autolayer(power_train_m_HW_for, PI=FALSE, col= "coral", size=1)+
+  autolayer(power_m_HW_for, PI=FALSE, col="firebrick2", size=1)
+
+
+#plot prediction by week#
+p_hw_w<-autoplot(power_train_w_ts) + 
+  autolayer(power_train_w_HW_for, PI=FALSE, col= "green", size=1)+
+  autolayer(power_w_HW_for, PI=FALSE, col="mediumspringgreen", size=1)
+
+#plot prediction by week#
+p_hw_d<-autoplot(power_train_d_ts) + 
+  autolayer(power_train_d_HW_for, PI=FALSE, col= "cyan", size=1)+
+  autolayer(power_d_HW_for, PI=FALSE, col="blue", size=1)
+
+
+grid.arrange(p_hw_m, p_hw_w, p_hw_d)
 
 ####ARIMA####
 
