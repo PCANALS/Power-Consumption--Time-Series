@@ -274,22 +274,25 @@ pl_na_dff
 
 
 ##Frame by month#
+power_new$Date<-as.Date(power_new$Date, format="%Y-%m-%d")
 
 power_df_m<-power_new %>% select(Date, Global_active_power_kWm)%>%
-  transmute(YeTs=year(Date), MoTs=month(Date, label = TRUE, abbr = FALSE), 
-            Global_active_power_kWm)%>%
-  group_by(YeTs, MoTs)%>%summarise_all(sum)
+  transmute(YeMo=as.yearmon(Date),Global_active_power_kWm) %>%
+  group_by(YeMo)%>%summarise_all(sum)%>%ungroup()
 
-power_m_ts<-ts(power_df_m$Global_active_power_kWm, frequency = 12, start=c(2006,12))
+power_m_ts<-ts(power_df_m$Global_active_power_kWm, frequency = 12, start=c(2007))
 
 # train #
 
-power_train_m<-power_df_m%>%ungroup()%>%filter(YeTs!=2009&YeTs!=2010)
+power_train_m<-power_df_m%>%ungroup()%>%filter(YeMo<=as.yearmon("Nov 2009"))
 
 #test #
 
-power_test_m<-power_df_m%>%ungroup()%>%filter(YeTs==2009|YeTs==2010)
+power_test_m<-power_df_m%>%ungroup()%>%filter(YeMo>as.yearmon("Nov 2009"))
 
+
+month = as.Date(cut(Date, breaks = "month")),
+week = as.Date(cut(Date, breaks = "week", start.on.monday = T))
 
 
 #Frame by week#
@@ -305,11 +308,11 @@ power_w_ts<-ts(power_df_w$Global_active_power_kWm, frequency = 52, start=c(2006,
 
 ### train 
 
-power_train_w<-power_df_w%>%ungroup()%>%filter(Year2!=2009&Year2!=2010)
+power_train_w<-power_df_w%>%ungroup()%>%filter(Year2!=2010)
 
 ###test #
 
-power_test_w<-power_df_w%>%ungroup()%>%filter(Year2==2009&Year2==2010)
+power_test_w<-power_df_w%>%ungroup()%>%filter(Year2==2010)
 
 
 
@@ -327,12 +330,6 @@ power_df_d<-power_day%>%select(Date, Global_active_power_kWm)
 
 power_d_ts<-ts(power_df_d$Global_active_power_kWm, frequency = 365, start=c(2006,350))
 
-power_train_d_ts_2<-window(power_d_ts, end=c(2009,330))
-power_test_d_ts_2<-window(power_d_ts, start=c(2009,331))
-
-
-
-autoplot(power_d_ts)+autolayer(power_train_d_ts_2)+autolayer(power_test_d_ts_2)
 
 
 ### train 
@@ -349,12 +346,12 @@ power_test_d<-power_df_d%>%ungroup()%>%filter(year(Date)==2010)
 
 power_train_m_ts<-ts(power_train_m$Global_active_power_kWm, frequency = 12, start=c(2006,12))
 power_train_w_ts<-ts(power_train_w$Global_active_power_kWm, frequency = 52, start=c(2006,12))
-power_train_d_ts<-ts(power_train_d$Global_active_power_kWm, frequency = 365,25, start=c(2006,12))
+power_train_d_ts<-ts(power_train_d$Global_active_power_kWm, frequency = 365, start=c(2006,12), end = c(2008,12))
 
 
 power_test_m_ts<-ts(power_test_m$Global_active_power_kWm, frequency = 12, start=c(2009,01))
 power_test_w_ts<-ts(power_test_w$Global_active_power_kWm, frequency = 52, start=c(2009,01))
-power_test_d_ts<-ts(power_test_d$Global_active_power_kWm, frequency = 365,25, start=c(2009,01))
+power_test_d_ts<-ts(power_test_d$Global_active_power_kWm, frequency = 365, start=c(2009,01))
 
 #par(mfrow=c(3,1)) #number of plots
 # plot.ts(power_train_m_ts)
@@ -369,25 +366,17 @@ power_test_d_ts<-ts(power_test_d$Global_active_power_kWm, frequency = 365,25, st
 power_train_m_dec<-decompose(power_train_m_ts)
 power_train_w_dec<-decompose(power_train_w_ts)
 power_train_d_dec<-decompose(power_train_d_ts)
-power_train_d_dec2<-decompose(power_train_d_ts_2)
-power_train_d_dec_stl <- stl(power_train_d_ts_2, s.window=7, t.window=511, s.degree=0)
-plot(power_train_d_dec_stl)
-
-
-
-
-
 
 
 #HW#
 
-power_train_m_HW<-HoltWinters(power_train_d_ts_2)
+power_train_m_HW<-HoltWinters(power_train_d_ts)
 power_m_HW<-HoltWinters(power_m_ts)
 
 power_train_w_HW<-HoltWinters(power_train_w_ts)
 power_w_HW<-HoltWinters(power_w_ts)
 
-power_train_d_HW<-HoltWinters(power_train_d_ts_2)
+power_train_d_HW<-HoltWinters(power_train_d_ts)
 power_d_HW<-HoltWinters(power_d_ts)
 
 
@@ -408,9 +397,8 @@ power_train_w_HW_for<-forecast(power_train_w_HW, h = 52)
 power_w_HW_for<-forecast(power_w_HW, h = 104)
 
 power_train_d_HW_for<-forecast(power_train_d_HW, h = 365)
-power_d_HW_for<-forecast(power_d_HW, h = 730)
+power_d_HW_for<-forecast(power_d_HW, h = 365)
 
-#### RUN WITHOUT ISSUES####
 
 
 ####HW ERROR####
@@ -426,10 +414,6 @@ accuracy(power_train_w_HW_for,power_test_w_ts)
 accuracy(power_train_d_HW_for,power_test_d_ts)
 
 
-autoplot(power_test_m_ts) + autolayer(power_train_m_HW_for, PI=FALSE)
-
-autoplot(power_train_m_HW_for)
-
 
 #plot prediction by month#
 p_hw_m<-autoplot(power_train_m_ts) + 
@@ -442,7 +426,7 @@ p_hw_w<-autoplot(power_train_w_ts) +
   autolayer(power_train_w_HW_for, PI=FALSE, col= "green", size=1)+
   autolayer(power_w_HW_for, PI=FALSE, col="mediumspringgreen", size=1)
 
-#plot prediction by week#
+#plot prediction by day#
 p_hw_d<-autoplot(power_train_d_ts) + 
   autolayer(power_train_d_HW_for, PI=FALSE, col= "cyan", size=1)+
   autolayer(power_d_HW_for, PI=FALSE, col="blue", size=1)
@@ -450,7 +434,8 @@ p_hw_d<-autoplot(power_train_d_ts) +
 
 plot_HW_for<-grid.arrange(p_hw_m,p_hw_w, p_hw_d)
 
-####ARIMA####
+
+####arima####
 
 # autoplot(power_train_m_ts)
 # autoplot(power_train_w_ts)
@@ -465,9 +450,9 @@ power_w_arima<-auto.arima(power_w_ts)
 power_d_arima<-auto.arima(power_d_ts)
 power_d_arima_manu<-arima(power_d_ts,order = c(2,1,3), seasonal = c(0,0,0))
 
-power_train_m_arima_for<-forecast:::forecast.Arima(power_train_m_arima, h=11)
-power_train_w_arima_for<-forecast:::forecast.Arima(power_train_w_arima, h=48)
-power_train_d_arima_for<-forecast:::forecast.Arima(power_train_d_arima, h=330)
+power_train_m_arima_for<-forecast(power_train_m_arima, h=11)
+power_train_w_arima_for<-forecast(power_train_w_arima, h=48)
+power_train_d_arima_for<-forecast(power_train_d_arima, h=330)
 
 power_m_arima_for<-forecast(power_m_arima, h = 48)
 power_w_arima_for<-forecast(power_w_arima, h = 210)
@@ -480,12 +465,12 @@ power_train_m_arima_for$fitted
 
 acf(power_train_m_arima$residuals, na.action = na.pass)
 Box.test(power_train_m_arima$residuals, lag = 6 )
-checkresiduals(power_train_m_arima)
+#checkresiduals(power_train_m_arima)
 
 acf(power_train_w_arima$residuals, na.action = na.pass)
 acf(power_train_d_arima$residuals, na.action = na.pass)
-checkresiduals(power_train_w_arima)
-checkresiduals(power_train_d_arima)
+#checkresiduals(power_train_w_arima)
+#checkresiduals(power_train_d_arima)
 
 accuracy(power_train_m_arima_for,power_test_m_ts)
 accuracy(power_train_w_arima_for,power_test_w_ts)
@@ -564,25 +549,84 @@ p_tslm_d<-autoplot(power_train_d_ts) +
 plot_tslm_for<-grid.arrange(p_tslm_m, p_tslm_w, p_tslm_d)
 
 
+#### ~~~~DAY~~~~####
+
+#power_d_ts<-ts(power_df_d$Global_active_power_kWm, frequency = 365, start=c(2006,350))
+
+power_train_d_ts_2<-window(power_d_ts, end=c(2009,330))
+power_test_d_ts_2<-window(power_d_ts, start=c(2009,331))
+
+
+autoplot(power_d_ts)+autolayer(power_train_d_ts_2)+autolayer(power_test_d_ts_2)
+
+power_train_d_dec2<-decompose(power_train_d_ts_2)
+
+power_train_d_dec_stl <- stl(power_train_d_ts_2, s.window=7, t.window=1000, s.degree=0)
+autoplot(power_train_d_dec_stl)
+
+#HW#
+power_train_d_HW_2<-HoltWinters(power_train_d_ts_2)
+power_d_HW_2<-HoltWinters(power_d_ts)
+
+power_train_d_HW_for<-forecast(power_train_d_HW_2, h = 365)
+power_d_HW_for_2<-forecast(power_d_HW, h = 730)
+
+MHW2<-accuracy(power_train_d_HW_for,power_test_d_ts_2)
+
+#plot prediction by day2#
+p_hw_d2<-autoplot(power_d_ts) + 
+  autolayer(power_d_HW_for, PI=FALSE, col="blue", size=1)
+
+p_hw_d3<-autoplot(power_test_d_ts_2) + 
+  autolayer(power_train_d_HW_for, PI=FALSE, col= "cyan", size=1)
+
+#arima# ### arima is discarded because only is accepting a maximum frequency of 350
+
+power_train_d_arima_2<-auto.arima(power_train_d_ts_2)
+power_d_arima_2<-auto.arima(power_d_ts)
+
+power_train_d_arima_for_2<-forecast(power_train_d_arima_2, h = 365)
+power_d_arima_for_2<-forecast(power_d_arima_2, h = 365)
+
+Marima2<-accuracy(power_train_d_arima_for_2,power_test_d_ts_2)
+
+#plot prediction by day2#
+p_arima_d2<-autoplot(power_d_ts) + 
+  autolayer(power_d_arima_for_2, PI=FALSE, col="blue", size=1)
+p_arima_d3<-autoplot(power_test_d_ts_2) + 
+  autolayer(power_train_d_arima_for_2, PI=FALSE, col= "cyan", size=1)
+
+###linear###
+
+
+power_train_d_tslm_2<-tslm(power_train_d_ts_2~ trend + season)
+power_d_tslm_2<-tslm(power_d_ts~ trend + season)
+
+power_train_d_tslm_for_2<-forecast(power_train_d_tslm_2, h = 365)
+power_d_tslm_for_2<-forecast(power_d_tslm_2, h = 365)
+
+Mtslm2<-accuracy(power_train_d_tslm_for_2,power_test_d_ts_2)
+
+#plot prediction by day2#
+p_tslm_d2<-autoplot(power_d_ts) + 
+  autolayer(power_d_tslm_for_2, PI=FALSE, col="blue", size=1)
+p_tslm_d3<-autoplot(power_test_d_ts_2) + 
+  autolayer(power_train_d_tslm_for_2, PI=FALSE, col= "cyan", size=1)
+
+
 
 ####MODEL SELECTION RESUMEN####
 
-plot_HW_for
-plot_arima_for
-plot_tslm_for
+###BY DAY###
+p_d_train_models<-grid.arrange(p_tslm_d3, p_hw_d3)
+p_d_pred_models<-grid.arrange(p_tslm_d2, p_hw_d2)
 
-accuracy(power_train_m_HW_for,power_test_m_ts)
-accuracy(power_train_w_HW_for,power_test_w_ts)
-accuracy(power_train_d_HW_for,power_test_d_ts)#error#
+p_all_d<-autoplot(power_d_ts)+ 
+  autolayer(power_train_d_tslm_for_2, PI=FALSE, col= "cyan", size=1)+
+  + autolayer(power_train_d_HW_for_2, PI=FALSE, col= "red", size=1)
 
-accuracy(power_train_m_arima_for,power_test_m_ts)
-accuracy(power_train_w_arima_for,power_test_w_ts)
-accuracy(power_train_d_arima_for,power_test_d_ts)#error#
-
-accuracy(power_train_m_tslm_for,power_test_m_ts)
-accuracy(power_train_w_tslm_for,power_test_w_ts)
-accuracy(power_train_d_tslm_for,power_test_d_ts)#error#
-
+Mtslm2
+MHW2
 ## ALL FORECASTING ###
 
 ###############################################################################################3
