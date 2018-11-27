@@ -6,10 +6,13 @@ Sys.setlocale(category = "LC_ALL", locale = "english")
 
 
 #### ._LIBRARIES####
-pacman::p_load(tidyverse,dplyr,lubridate, forecast, tseries, gridExtra)
+
+if(require("pacman")=="FALSE"){install.packages("pacman")}
+
+pacman::p_load(tidyverse,dplyr,lubridate, forecast, tseries, gridExtra, zoo)
 # library(dplyr)
-# # library(ggplot2)
-# # library(tidyr)
+# library(ggplot2)
+# library(tidyr)
 # library(lubridate)
 # library(stats)
 # library(magrittr)
@@ -53,14 +56,11 @@ power<-powero # to keep original#
 power$DateTime<-lubridate::dmy_hms(paste(power$Date,power$Time))
 
 
-
 power$Date<-lubridate::dmy(power$Date)
 power$Time<-lubridate::hms(power$Time)
 
 
 #each attribute it's different but it works correctly for time series#
-
-
 
 power <- power[,c(ncol(power), 1:(ncol(power)-1))] #order #
 
@@ -299,7 +299,7 @@ power_test_m<-power_df_m%>%ungroup()%>%filter(YeTs==2010)
       #   summarise(Global_active_power_kWm = mean(Global_active_power_kWm))
 
 power_df_w<-power_week
-power_w_ts<-ts(power_df_w$Global_active_power_kWm, frequency = 53, start=c(2006,12))
+power_w_ts<-ts(power_df_w$Global_active_power_kWm, frequency = 52, start=c(2006,12))
 
 
 ### train 
@@ -324,7 +324,7 @@ anyNA(power_day[,"Global_active_power_kWm"])
 
 power_df_d<-power_day%>%select(Date, Global_active_power_kWm)
 
-power_d_ts<-ts(power_df_d$Global_active_power_kWm, frequency = 365, start=c(2006,12))
+power_d_ts<-ts(power_df_d$Global_active_power_kWm, frequency = 365, start=c(2006,12), end = c(2010,11))
 
 
 ### train 
@@ -338,13 +338,13 @@ power_test_d<-power_df_d%>%ungroup()%>%filter(year(Date)==2010)
 ####time series with train & test####
 
 power_train_m_ts<-ts(power_train_m$Global_active_power_kWm, frequency = 12, start=c(2006,12))
-power_train_w_ts<-ts(power_train_w$Global_active_power_kWm, frequency = 53, start=c(2006,12))
-power_train_d_ts<-ts(power_train_d$Global_active_power_kWm, frequency = 365, start=c(2006,12))
+power_train_w_ts<-ts(power_train_w$Global_active_power_kWm, frequency = 52, start=c(2006,12))
+power_train_d_ts<-ts(power_train_d$Global_active_power_kWm, frequency = 365, start=c(2006,12),end = c(2009,12))
 
 
 power_test_m_ts<-ts(power_test_m$Global_active_power_kWm, frequency = 12, start=c(2010,01))
-power_test_w_ts<-ts(power_test_w$Global_active_power_kWm, frequency = 53, start=c(2010,01))
-power_test_d_ts<-ts(power_test_d$Global_active_power_kWm, frequency = 365, start=c(2010,01))
+power_test_w_ts<-ts(power_test_w$Global_active_power_kWm, frequency = 52, start=c(2010,01))
+power_test_d_ts<-ts(power_test_d$Global_active_power_kWm, frequency = 365,25, start=c(2010,01), end = c(2010,11))
 
 #par(mfrow=c(3,1)) #number of plots
 # plot.ts(power_train_m_ts)
@@ -439,7 +439,7 @@ p_hw_d<-autoplot(power_train_d_ts) +
   autolayer(power_d_HW_for, PI=FALSE, col="blue", size=1)
 
 
-plot_HW_for<-grid.arrange(p_hw_w, p_hw_d)
+plot_HW_for<-grid.arrange(p_hw_m,p_hw_w, p_hw_d)
 
 ####ARIMA####
 
@@ -467,7 +467,7 @@ power_d_arima_for_manu<-forecast(power_d_arima_manu, h = 1440)
 
 autoplot(power_d_arima_for_manu)
 
-power_train_m_arima_fore$fitted
+power_train_m_arima_for$fitted
 
 acf(power_train_m_arima$residuals, na.action = na.pass)
 Box.test(power_train_m_arima$residuals, lag = 6 )
